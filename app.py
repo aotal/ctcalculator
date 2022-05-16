@@ -16,8 +16,8 @@ from skimage import color
 from skimage.feature import canny
 from skimage.transform import hough_circle, hough_circle_peaks
 
-from docx.shared import Cm, Emu, Inches, Mm
-from docxtpl import DocxTemplate, InlineImage
+#from docx.shared import Cm, Emu, Inches, Mm
+#from docxtpl import DocxTemplate, InlineImage
 
 
 import os
