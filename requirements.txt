@@ -6,4 +6,4 @@ seaborn
 plotly
 kaleido
 streamlit
-skimage
+scikit-image
