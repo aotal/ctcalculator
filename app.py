@@ -609,8 +609,8 @@ def TC016_llenar_tabla(tabla, materiales=TC016_materiales):
     Std = np.array([])
     for m in materiales:
         subconjunto_table = tabla[tabla['m'] == m]
-        np.append(Media, subconjunto_table['y'].mean())
-        np.append(Std, subconjunto_table['y'].std())
+        Media=np.append(Media, subconjunto_table['y'].mean())
+        Std=np.append(Std, subconjunto_table['y'].std())
     FF = pd.DataFrame(columns=['Material', 'Media', 'Std'])
     FF['Material'] = materiales
     FF['Media'] = Media
