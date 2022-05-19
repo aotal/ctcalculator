@@ -46,6 +46,12 @@ TC017_deseable = ['6 mm 0.8%']
 # TC016_centros = np.array([[-2.39, -55.71], [-31.1, -47.51], [-59.81,   3.08],
 #                         [-30.42,  52.98], [27.69,  52.29], [56.4,   2.39], [27., -47.51]])
 
+TC014_centros = np.array([[0, 0], [-50, 0], [50,   0],
+                         [0,  -50], [0,  50]])
+
+TC014_posiciones = ['Centro', 'Izquierda', 'Derecha',
+                    'Arriba', 'Abajo']
+
 TC016_centros = np.array([[-0.34, -57.08], [-29.73, -49.56], [-58.45,   0.34],
                          [-29.73,  50.25], [28.37,  50.93], [57.08,   0.34], [28.37, -49.56]])
 
@@ -574,13 +580,37 @@ def TC016_recta(imagen, centros=TC016_centros, densidad=TC016_edensity, radio=5,
     return FF
 
 
+def TC014_valores(imagen, centros=TC014_centros, radio=5, posiciones=TC014_posiciones, HoughParameters=TC018_HoughParameters):
+
+    MatrizOriginal = imagen.pixel_array+imagen.RescaleIntercept
+    tamanoPixel = imagen.PixelSpacing[0]
+    accums, cx, cy, radii = BusquedaCirculos(
+        imagen.pixel_array, HoughParameters, tamanoPixel
+    )
+    MitadPixeles = int(MatrizOriginal.shape[0]/2)
+    pixelcentros = (centros/tamanoPixel).astype(np.int32) + np.array([cx[0], cy[0]])
+    # pixelcentros = (centros/tamanoPixel).astype(np.int32)+np.array([255,248])#MitadPixeles
+    media = np.array([])
+    desvest = np.array([])
+    for centro in pixelcentros:
+        out = MatrizOriginal[createCircularMask(MatrizOriginal.shape, center=centro, radius=int(
+            radio/tamanoPixel))]
+        print(MatrizOriginal[createCircularMask(MatrizOriginal.shape, center=centro, radius=int(radio/tamanoPixel))].mean())
+        media=np.append(media,np.array([out.mean()]))
+        desvest=np.append(desvest,np.array([out.std()]))
+    FF = pd.DataFrame()
+    FF['posicion'] = posiciones
+    FF['media'] = media
+    FF['std'] = desvest
+    return FF
+
 def TC016_llenar_tabla(tabla, materiales=TC016_materiales):
     Media = np.array([])
     Std = np.array([])
     for m in materiales:
         subconjunto_table = tabla[tabla['m'] == m]
-        Media = np.append(Media, subconjunto_table['y'].mean())
-        Std = np.append(Std, subconjunto_table['y'].std())
+        np.append(Media, subconjunto_table['y'].mean())
+        np.append(Std, subconjunto_table['y'].std())
     FF = pd.DataFrame(columns=['Material', 'Media', 'Std'])
     FF['Material'] = materiales
     FF['Media'] = Media
@@ -588,7 +618,8 @@ def TC016_llenar_tabla(tabla, materiales=TC016_materiales):
     FF = FF.set_index('Material')
     return FF
 
-
+def DimensionArray(lista):
+    return np.zeros(lista[0].pixel_array.shape+tuple([len(lista)]))
 
 # Constantes 2
 #TC007_tolerancia_axial = np.repeat('\u00B1 1 mm', espesores_de_corte_axial)
@@ -601,12 +632,12 @@ def TC016_llenar_tabla(tabla, materiales=TC016_materiales):
 st.title('Herramientas de cálculo CC CT')
 
 
-# 1.4.1 Axial
+# Espesor de corte 
 
-st.markdown('### 1.4.1 Axial')
+st.markdown('## Espesor de Corte [TC007](https://drive.google.com/open?id=14adFusPK1sqlF9hLEqKl86HMZ03XSFzf&disco=AAAADH081e4)')
 
 TC007_file1_raw = st.file_uploader(
-    "Espesor de corte axial", ['dcm'], True, key='TC007_image1_raw', on_change=CambioEnLoader('TC007', 'TC007_axial'))
+    "", ['dcm'], True, key='TC007_image1_raw', on_change=CambioEnLoader('TC007', 'TC007_axial'), help="Arrastre los ficheros adquiridos del módulo de Catphan CTP732")
 #TC007_table_axial = np.zeros((1, 3))
 
 if TC007_file1_raw is not None:
@@ -670,13 +701,20 @@ if len(TC007_files) > 0:
 # 2.5 Valores de los números CT en distintos materiales. Linealidad y escala de contraste [TC016]
 
 st.markdown(
-    '## 2.5 Uniformidad espacial del número CT [TC016](https://drive.google.com/open?id=14adFusPK1sqlF9hLEqKl86HMZ03XSFzf&disco=AAAADH081k4)')
+    '## Uniformidad espacial del número CT [TC016](https://drive.google.com/open?id=14adFusPK1sqlF9hLEqKl86HMZ03XSFzf&disco=AAAADH081k4)')
 
-TC016_file1 = st.file_uploader(
-    "Centraje", ['dcm'], False, key='TC016_image1_raw')
-if TC016_file1 is not None:
+TC016_file1_raw = st.file_uploader(
+    "", ['dcm'], True, key='TC016_image1_raw',help="Utilizar de nuevo las imágenes del módulo CTP732")
+if TC016_file1_raw is not None:
+    TC016_files = [dc.read_file(x) for x in TC016_file1_raw]
+if len(TC016_files) > 0:
+    TC016_file=TC016_files[0]
+    TC016_file_Matrix=DimensionArray(TC016_files)
+    for i,row in enumerate(TC016_files):
+        TC016_file_Matrix[:,:,i]=row.pixel_array
+    TC016_file.PixelData=TC016_file_Matrix.mean(axis=2).astype(np.uint16).tobytes()
     TC016_fig_1, TC016_ax_1 = plt.subplots(figsize=(1, 1))
-    TC016_file = dc.read_file(TC016_file1)
+    #TC016_file = dc.read_file(TC016_file1)
     TC016_im = TC016_ax_1.imshow(TC016_file.pixel_array, cmap='gray')
     TC016_ax_1.grid(False)
     TC016_ax_1.set_axis_off()
@@ -714,12 +752,11 @@ if TC016_file1 is not None:
 # 2.7 Resolución espacial [TC018]
 
 st.markdown(
-    '## 2.7 Resolución espacial [TC018](https://drive.google.com/open?id=14adFusPK1sqlF9hLEqKl86HMZ03XSFzf&disco=AAAADH081mY)')
+    '## Homogeneidad y Resolución espacial') # [TC018](https://drive.google.com/open?id=14adFusPK1sqlF9hLEqKl86HMZ03XSFzf&disco=AAAADH081mY)')
 
-st.markdown('### 2.7.1 Abdomen')
 
 TC018_file1_abdomen = st.file_uploader(
-    "MTF abdomen", ['dcm'], True, key='TC018_images_abdomen_raw', on_change=CambioEnLoader('TC018_img_abdomen', 'TC018_images_abdomen_raw'))
+    "MTF abdomen", ['dcm'], True, key='TC018_images_abdomen_raw',help="Volcaremos las imágenes del módulo CTP729 (homogenidad)", on_change=CambioEnLoader('TC018_img_abdomen', 'TC018_images_abdomen_raw'))
 if TC018_file1_abdomen is not None:
     TC018_image_abdomen = [dc.read_file(x) for x in TC018_file1_abdomen]
 if len(TC018_image_abdomen) > 0:
@@ -732,4 +769,21 @@ if len(TC018_image_abdomen) > 0:
     #st.session_state.context['TC018_img_abdomen'] = InlineImage(
     #    st.session_state.template, st.session_state.dirname+"/img/TC018_img_abdomen.png", Cm(12))
     st.plotly_chart(TC018_MTF_plotly_abdomen)
+    csv3 = TC018_MTF_valores_abdomen.to_csv().encode('utf-8')
+    st.download_button(
+     label="Bajar datos como CSV",
+     data=csv3,
+     file_name='MTFvalores.csv',
+     mime='text/csv',
+        )
     st.table(TC018_MTF_valores_abdomen)
+    TC014_homogeneidad=TC014_valores(TC018_image_abdomen[0])
+    TC014_homogeneidad=TC014_homogeneidad.set_index('posicion')
+    csv4 = TC018_MTF_valores_abdomen.to_csv().encode('utf-8')
+    st.download_button(
+     label="Bajar datos como CSV",
+     data=csv4,
+     file_name='ValoresHomogeneidad.csv',
+     mime='text/csv',
+        ) 
+    st.table(TC014_homogeneidad)
